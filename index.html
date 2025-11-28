@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Campamentos Chile – Mapa Físico</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+    }
+
+    h2 {
+      color: white;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0 0 30px 0;
+      text-align: center;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      letter-spacing: 1px;
+    }
+
+    #container {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      background: black;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    video,
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1280px;
+      height: 720px;
+    }
+
+    #info {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 20px 25px;
+      border-radius: 12px;
+      font-size: 1.3rem;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #debug {
+      margin-top: 20px;
+      font-size: 1rem;
+      color: white;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px 20px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      max-width: 1280px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>🗺️ Mapa Físico Interactivo — Chile y sus Campamentos</h2>
+
+  <div id="container">
+    <video id="video" playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div id="info">Apunta a una región con el dedo.</div>
+  </div>
+
+  <div id="debug">Esperando cámara…</div>
+
+
+  <!-- ==== MediaPipe versión correcta ==== -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+
+
+  <script>
+    const W = 1280;
+    const H = 720;
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const info = document.getElementById("info");
+    const debug = document.getElementById("debug");
+
+    canvas.width = W;
+    canvas.height = H;
+
+
+    /* =====================================================
+          REGIONES (bounding boxes REALES adaptadas a tu foto)
+       ===================================================== */
+
+    const regiones = [
+      // Distribución horizontal uniforme con altura constante (cuadrados similares)
+      { id: "arica", nombre: "Arica y Parinacota", x1: 0.173, x2: 0.200, y1: 0.40, y2: 0.55 },
+      { id: "tarapaca", nombre: "Tarapacá", x1: 0.200, x2: 0.242, y1: 0.40, y2: 0.55 },
+      { id: "antof", nombre: "Antofagasta", x1: 0.242, x2: 0.320, y1: 0.40, y2: 0.55 },
+      { id: "atacama", nombre: "Atacama", x1: 0.320, x2: 0.383, y1: 0.40, y2: 0.55 },
+      { id: "coquimbo", nombre: "Coquimbo", x1: 0.383, x2: 0.420, y1: 0.40, y2: 0.55 },
+      { id: "valpo", nombre: "Valparaíso", x1: 0.420, x2: 0.440, y1: 0.40, y2: 0.55 },
+      { id: "rm", nombre: "Región Metropolitana", x1: 0.440, x2: 0.459, y1: 0.40, y2: 0.55 },
+      { id: "ohiggins", nombre: "O'Higgins", x1: 0.459, x2: 0.470, y1: 0.40, y2: 0.55 },
+      { id: "maule", nombre: "Maule", x1: 0.470, x2: 0.496, y1: 0.40, y2: 0.55 },
+      { id: "biobio", nombre: "Biobío", x1: 0.496, x2: 0.518, y1: 0.40, y2: 0.55 },
+      { id: "araucania", nombre: "La Araucanía", x1: 0.518, x2: 0.544, y1: 0.40, y2: 0.55 },
+      { id: "losrios", nombre: "Los Ríos", x1: 0.544, x2: 0.555, y1: 0.40, y2: 0.55 },
+      { id: "loslagos", nombre: "Los Lagos", x1: 0.555, x2: 0.606, y1: 0.40, y2: 0.55 },
+      { id: "aysen", nombre: "Aysén", x1: 0.606, x2: 0.680, y1: 0.40, y2: 0.55 },
+      { id: "magallanes", nombre: "Magallanes", x1: 0.680, x2: 0.763, y1: 0.40, y2: 0.55 },
+    ];
+
+
+    const campamentos = {
+      arica: { camp: 21, familias: 580, hogar: 1682 },
+      tarapaca: { camp: 63, familias: 1820, hogar: 5278 },
+      antof: { camp: 154, familias: 3850, hogar: 11165 },
+      atacama: { camp: 147, familias: 3675, hogar: 10658 },
+      coquimbo: { camp: 51, familias: 1530, hogar: 4437 },
+      valpo: { camp: 335, familias: 10050, hogar: 29145 },
+      rm: { camp: 153, familias: 6885, hogar: 19967 },
+      ohiggins: { camp: 57, familias: 1710, hogar: 4959 },
+      maule: { camp: 16, familias: 480, hogar: 1392 },
+      biobio: { camp: 245, familias: 8575, hogar: 24868 },
+      araucania: { camp: 66, familias: 1980, hogar: 5742 },
+      losrios: { camp: 36, familias: 1080, hogar: 3132 },
+      loslagos: { camp: 75, familias: 2250, hogar: 6525 },
+      aysen: { camp: 6, familias: 180, hogar: 522 },
+      magallanes: { camp: 3, familias: 90, hogar: 261 },
+    };
+
+    // Calcular totales nacionales
+    const totalCampamentos = Object.values(campamentos).reduce((sum, d) => sum + d.camp, 0);
+    const totalFamilias = Object.values(campamentos).reduce((sum, d) => sum + d.familias, 0);
+    const totalHogares = Object.values(campamentos).reduce((sum, d) => sum + d.hogar, 0);
+
+
+    /* =====================================================
+          HABLAR
+       ===================================================== */
+
+    let lastSpeak = 0;
+    let hablando = false;
+
+    function say(msg) {
+      // Cancelar cualquier voz anterior inmediatamente
+      speechSynthesis.cancel();
+      
+      const now = Date.now();
+      lastSpeak = now;
+
+      // Ejecutar de forma asíncrona para no bloquear
+      setTimeout(() => {
+        try {
+          const u = new SpeechSynthesisUtterance(msg);
+          u.lang = "es-ES";
+          u.rate = 0.9;
+          u.pitch = 1.0;
+          u.volume = 1.0;
+          
+          u.onstart = () => { hablando = true; };
+          u.onend = () => { hablando = false; };
+          
+          speechSynthesis.speak(u);
+        } catch(e) {
+          console.log('Error de voz:', e);
+          hablando = false;
+        }
+      }, 10);
+    }
+
+
+    /* =====================================================
+          DETECTAR REGIÓN
+       ===================================================== */
+
+    function detectarRegion(x, y) {
+      for (const r of regiones) {
+        if (x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2) {
+          return r;
+        }
+      }
+      return null;
+    }
+
+
+    let ultimaRegion = null;
+
+
+    /* =====================================================
+          CALLBACK DE MEDIAPIPE
+       ===================================================== */
+
+    function onResults(results) {
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(results.image, 0, 0, W, H);
+
+      // ==== DEBUG: dibujar los bounding boxes de las regiones ====
+      regiones.forEach(r => {
+        ctx.strokeStyle = "rgba(255,0,0,0.6)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          r.x1 * W,
+          r.y1 * H,
+          (r.x2 - r.x1) * W,
+          (r.y2 - r.y1) * H
+        );
+      });
+
+      if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        debug.textContent = "No detecta mano (acércala / ilumina más / muestra toda la mano)";
+        return;
+      }
+
+      const lm = results.multiHandLandmarks[0][8]; // dedo índice
+      const x = lm.x;
+      const y = lm.y;
+
+      // dibujar punto azul
+      ctx.beginPath();
+      ctx.arc(x * W, y * H, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "cyan";
+      ctx.fill();
+
+      const region = detectarRegion(x, y);
+
+      debug.textContent = `x=${x.toFixed(3)}, y=${y.toFixed(3)}, región=${region ? region.id : "ninguna"}`;
+
+      if (region && region.id !== ultimaRegion) {
+        ultimaRegion = region.id;
+
+        const d = campamentos[region.id];
+        const porcentajeCamp = ((d.camp / totalCampamentos) * 100).toFixed(1);
+        const porcentajeFam = ((d.familias / totalFamilias) * 100).toFixed(1);
+        const porcentajeHogar = ((d.hogar / totalHogares) * 100).toFixed(1);
+        
+        let criticidad = "";
+        if (d.camp >= 100) {
+          criticidad = " Región crítica.";
+        } else if (d.camp >= 50) {
+          criticidad = " Situación preocupante.";
+        }
+
+        const msgCorto = `${region.nombre}. ${d.camp} campamentos, ${d.familias} familias, ${d.hogar} personas.${criticidad}`;
+        const msgCompleto = `${region.nombre}: ${d.camp} campamentos (${porcentajeCamp}% del total), ${d.familias} familias (${porcentajeFam}%), ${d.hogar} personas (${porcentajeHogar}%).${criticidad}`;
+
+        info.textContent = msgCompleto;
+        say(msgCorto);
+      }
+    }
+
+
+    /* =====================================================
+          CONFIGURAR MEDIAPIPE HANDS
+       ===================================================== */
+
+    const hands = new Hands({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      minDetectionConfidence: 0.2,
+      minTrackingConfidence: 0.2,
+      modelComplexity: 0
+    });
+
+    hands.onResults(onResults);
+
+
+    /* =====================================================
+          CÁMARA
+       ===================================================== */
+
+    const camera = new Camera(video, {
+      width: W,
+      height: H,
+      onFrame: async () => {
+        await hands.send({ image: video });
+      }
+    });
+
+    camera.start();
+  </script>
+
+</body>
+</html>
