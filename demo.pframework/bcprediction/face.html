@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <script>
+      // Inicia el sensor de cara para generar eventos cada 20 ms
+      Protobject.FaceSensor.start(20);
+      // Habilita el modo de inversión para que la vista sea más natural
+      Protobject.FaceSensor.flip(true);
+      // Muestra una vista previa del sensor de cara en la posición y tamaño especificados
+      Protobject.FaceSensor.showPreview({
+        top: 30,
+        left: 0,
+        width: 400,
+        height: 320,
+      });
+
+      // Escucha los datos del sensor de cara
+      Protobject.FaceSensor.onData((data) => {
+        // Verifica si se recibieron las formas de mezcla de la cara y si hay al menos una forma
+        if (data.faceBlendshapes && data.faceBlendshapes[0]) {
+          // Evaluar la expresión facial basada en los puntajes de las categorías de expresiones
+          if (data.faceBlendshapes[0].categories[45].score > 0.6) {
+            // Indica una expresión optimista
+            Protobject.Core.send("Optimistic").to("index.html");
+          } else if (data.faceBlendshapes[0].categories[1].score > 0.3) {
+            // Indica una expresión pesimista
+            Protobject.Core.send("Pessimistic").to("index.html");
+          } else {
+            Protobject.Core.send("Neutral").to("index.html"); // Si no se detectan expresiones fuertes, es neutral
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

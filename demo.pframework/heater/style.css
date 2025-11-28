@@ -1,0 +1,41 @@
+#myDiv {
+  width: 800px;
+}
+
+#indoor:before {
+  content: "Indoor ";
+  font-weight: 200;
+}
+
+#outdoor:before {
+  content: "Outdoor ";
+  font-weight: 200;
+}
+
+#indoor:after,
+#outdoor:after {
+  content: "º";
+}
+
+#indoor,
+#outdoor {
+  font: 40px sans-serif;
+  margin-left: 120px;
+  font-weight: 800;
+  color: #333;
+}
+
+#close {
+  display: none;
+  font: 60px sans-serif;
+  margin-left: 120px;
+  margin-top: 40px;
+  font-weight: 800;
+  color: #995522;
+}
+#heating {
+  position: absolute;
+  left: 540px;
+  top: 20px;
+  height: 360px;
+}

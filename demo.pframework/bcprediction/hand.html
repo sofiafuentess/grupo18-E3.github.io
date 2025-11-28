@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <script>
+      // Inicia el sensor de mano para generar eventos cada 20 ms
+      Protobject.HandSensor.start(20);
+      // Habilita el modo de inversión para que la vista sea más natural
+      Protobject.HandSensor.flip(true);
+      // Muestra una vista previa del sensor de mano en la posición y tamaño especificados
+      Protobject.HandSensor.showPreview({
+        top: 30,
+        left: 0,
+        width: 400,
+        height: 320,
+      });
+
+      // Escucha los datos del sensor de mano
+      Protobject.HandSensor.onData((data) => {
+        // Verifica si se recibieron gestos y si hay al menos un gesto
+        if (data.gestures && data.gestures[0]) {
+          // Evaluar el gesto basado en el nombre de la categoría
+          const gesture = data.gestures[0][0].categoryName; // Accede al nombre de la categoría del primer gesto
+
+          // Envía la clasificación de la expresión en función del gesto detectado
+          if (gesture === "Thumb_Up") {
+            // Indica un gesto optimista
+            Protobject.Core.send("Optimistic").to("index.html");
+          } else if (gesture === "Thumb_Down") {
+            // Indica un gesto pesimista
+            Protobject.Core.send("Pessimistic").to("index.html");
+          } else {
+            Protobject.Core.send("Neutral").to("index.html"); // Si no se detecta un gesto relevante, es neutral
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

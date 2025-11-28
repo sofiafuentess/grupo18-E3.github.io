@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arduino</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script>
+      Protobject.Arduino.start();
+
+      Protobject.Core.onReceived((data) => {
+        console.log(data)
+        if (data.lightOne == true) {
+          console.log("turn on one");
+          Protobject.Arduino.servoWrite({ pin: 5, value: 600 });
+        } else if (data.lightOne == false) {
+          console.log("turn off one");
+          Protobject.Arduino.servoWrite({ pin: 5, value: 400 });
+        }
+
+        if (data.lightTwo == true) {
+          console.log("turn on two");
+          Protobject.Arduino.servoWrite({ pin: 6, value: 110 });
+        } else if (data.lightTwo == false) {
+          console.log("turn off two");
+          Protobject.Arduino.servoWrite({ pin: 6, value: -10 });
+        }
+      });
+    </script>
+  </body>
+</html>

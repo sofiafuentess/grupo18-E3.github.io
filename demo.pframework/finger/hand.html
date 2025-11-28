@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hand – Campamentos Chile</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <script>
+      // Inicia el sensor de mano (MediaPipe por debajo)
+      Protobject.HandSensor.start(100, 0);
+
+      // Vista previa del video (tu Spedal) – 640x360
+      Protobject.HandSensor.showPreview({
+        top: 0,
+        left: 0,
+        width: 1280 / 2,
+        height: 720 / 2,
+      });
+
+      // Si la imagen se ve invertida, cambia a true
+      Protobject.HandSensor.flip(false);
+
+      // Enviamos SOLO la posición del dedo índice (landmark 8) a index.html
+      Protobject.HandSensor.onData((data) => {
+        if (data.landmarks && data.landmarks[0] && data.landmarks[0][8]) {
+          Protobject.Core.send(data.landmarks[0][8]).to("index.html");
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+#myDiv {
+  width: 1200px;
+  height: 900px;
+}
+#npersonas {
+  position: absolute;
+  font: 40px sans-serif;
+  top: 405px;
+  left: 470px;
+  display: none; // Oculto inicialmente.
+}
+#npersonas:after {
+  content: " persona(s)"; // Sufijo después del número.
+}

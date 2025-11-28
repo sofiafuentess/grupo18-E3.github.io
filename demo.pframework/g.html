@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Alta precisione: Pitch & Yaw (Auto-Calibrante)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin:0; padding:16px; background:#0f1720; color:#e6eef8; }
+    header { margin-bottom:12px; }
+    h1 { margin:0 0 6px 0; font-size:18px; }
+    p.lead { margin:0; color:#cbd5e1; font-size:13px; }
+    .controls { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+    button, select, input[type=number] { padding:8px 10px; border-radius:8px; border:1px solid #233044; background:#0b1220; color:#e6eef8; cursor:pointer; }
+    button:disabled { opacity:0.5; cursor:not-allowed; }
+    .card { background:#071226; border-radius:12px; padding:12px; margin-top:10px; box-shadow: 0 6px 20px rgba(2,6,23,0.6); }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .value { font-variant-numeric: tabular-nums; font-size:20px; font-weight:600; color:#bfefff; }
+    .label { color:#94a3b8; font-size:12px; }
+    .small { font-size:12px; color:#9fb0c8; }
+    .tiny { font-size:11px; color:#7e98ad; }
+    #log { height:120px; overflow:auto; font-family: monospace; background:#041022; padding:8px; border-radius:8px; color:#9fd6ff; }
+    .row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Precise Orientation Monitor (Auto-Calibrante)</h1>
+    <p class="lead">Pitch &amp; Yaw molto sensibili — combina giroscopio e AbsoluteOrientation con filtro complementare.</p>
+  </header>
+
+  <div class="controls">
+    <button id="btnStart">Avvia sensori</button>
+    <button id="btnStop" disabled>Ferma</button>
+    <label class="tiny" title="Frequenza Gyroscope: più alta è, più reattiva ai micro-movimenti.">Freq Gyro:
+      <input id="inpGyroFreq" type="number" value="100" min="20" max="400" style="width:68px" /> Hz
+    </label>
+    <label class="tiny" title="Frequenza AbsoluteOrientation: più bassa per risparmiare batteria e fornire solo la correzione.">Freq Abs:
+      <input id="inpAbsFreq" type="number" value="30" min="1" max="60" style="width:56px" /> Hz
+    </label>
+    <label class="tiny" title="Peso del giroscopio (0.8-0.999). Valore più alto = più fiducia nel giroscopio (più reattivo, ma corregge il drift più lentamente).">α (gyro weight):
+      <input id="inpAlpha" type="number" value="0.985" step="0.005" min="0.8" max="0.999" style="width:70px" />
+    </label>
+  </div>
+
+  <div class="card grid">
+    <div>
+      <div class="label">Pitch (tilt) — Stima combinata</div>
+      <div id="pitch" class="value">0.000000°</div>
+      <div class="small">Integrato dal giroscopio, corretto dall'AbsoluteOrientation.</div>
+    </div>
+    <div>
+      <div class="label">Yaw (heading) — Stima combinata</div>
+      <div id="yaw" class="value">0.000000°</div>
+      <div class="small">Aggiornamento continuo, drift corretto.</div>
+    </div>
+    <div>
+      <div class="label">Pitch (Solo AbsoluteOrientation)</div>
+      <div id="pitchAbs" class="value">—</div>
+      <div class="tiny">Origine: quaternion -> pitch (riferimento lento)</div>
+    </div>
+    <div>
+      <div class="label">Yaw (Solo AbsoluteOrientation)</div>
+      <div id="yawAbs" class="value">—</div>
+      <div class="tiny">Origine: quaternion -> yaw (riferimento lento)</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="row">
+      <div>
+        <div class="label">Stato sensori</div>
+        <div id="status" class="small">idle</div>
+      </div>
+      <div style="text-align:right">
+        <div class="label">Bias Gyro Calcolato (rad/s)</div>
+        <div id="bias" class="small">x:0.000 y:0.000 z:0.000</div>
+      </div>
+    </div>
+    <hr style="border:none; height:1px; background:#233044; margin: 8px 0;" />
+    <div id="log" aria-live="polite"></div>
+  </div>
+
+  <footer style="margin-top:14px; color:#7e98ad; font-size:12px;">
+    Permessi: il browser può chiedere autorizzazione ai sensori. Su iOS 13+ è richiesta l'autorizzazione esplicita.
+  </footer>
+
+  <script>
+    /*
+      FILTRO COMPLEMENTARE AD ALTA PRECISIONE
+      =========================================
+      Obiettivo: ottenere pitch e yaw reattivi ai micro-movimenti (dal giroscopio) 
+      ma senza drift a lungo termine (correggendo con l'AbsoluteOrientationSensor).
+
+      Logica:
+      1.  **Calibrazione Automatica:** All'avvio, il giroscopio viene campionato per 3 
+          secondi per calcolare il suo 'bias' (errore a riposo). È FONDAMENTALE 
+          tenere il dispositivo fermo durante questa fase.
+      2.  **Loop ad Alta Frequenza (Gyroscope):**
+          - Calcola il tempo trascorso (dt) dall'ultima lettura.
+          - Prende la velocità angolare del giroscopio (rad/s) e sottrae il bias.
+          - **Integra** la velocità per ottenere una *nuova posizione stimata*:
+            `angolo_integrato = angolo_precedente + (velocita_gyro * dt)`
+          - **Corregge** questa stima usando il valore dell'AbsoluteOrientationSensor:
+            `angolo_finale = α * (angolo_integrato) + (1-α) * (angolo_assoluto)`
+      3.  **Loop a Bassa Frequenza (AbsoluteOrientationSensor):**
+          - Legge il quaternione e lo converte in angoli di Eulero (pitch, yaw).
+          - Questi valori vengono **solo** salvati come `orientAbs`. Non modificano 
+            direttamente l'angolo finale, ma vengono usati come "obiettivo" 
+            dal filtro nel loop del giroscopio.
+          - La prima lettura viene usata per inizializzare l'angolo fuso.
+    */
+
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const pitchEl = document.getElementById('pitch');
+    const yawEl = document.getElementById('yaw');
+    const pitchAbsEl = document.getElementById('pitchAbs');
+    const yawAbsEl = document.getElementById('yawAbs');
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const biasEl = document.getElementById('bias');
+
+    const inpGyroFreq = document.getElementById('inpGyroFreq');
+    const inpAbsFreq = document.getElementById('inpAbsFreq');
+    const inpAlpha = document.getElementById('inpAlpha');
+
+    let gyroSensor = null;
+    let absSensor = null;
+    let running = false;
+    let calibrating = false;
+
+    let alpha = 0.985;
+    let gyroFreq = 100;
+    let absFreq = 30;
+
+    let gyroBias = { x: 0, y: 0, z: 0 };
+    let biasSamples = [];
+    let calibSamplesNeeded = 300; // Verrà aggiornato in base alla frequenza
+
+    // 'orient' è la nostra stima finale (fusa)
+    let orient = { pitch: 0, yaw: 0 };
+    // 'orientAbs' è il riferimento "lento" dall'AbsoluteOrientationSensor
+    let orientAbs = { pitch: null, yaw: null };
+
+    let lastTime = null;
+
+    // --- Helpers ---
+    function log(m) {
+      const t = new Date().toLocaleTimeString();
+      logEl.textContent = `[${t}] ${m}\n` + logEl.textContent;
+    }
+
+    function quaternionToEuler(q) {
+      const x = q[0], y = q[1], z = q[2], w = q[3];
+      // yaw (z-axis rotation)
+      const siny_cosp = 2 * (w * z + x * y);
+      const cosy_cosp = 1 - 2 * (y * y + z * z);
+      const yaw = Math.atan2(siny_cosp, cosy_cosp);
+      // pitch (y-axis rotation)
+      const sinp = 2 * (w * y - z * x);
+      let pitch;
+      if (Math.abs(sinp) >= 1) {
+        pitch = Math.sign(sinp) * Math.PI / 2;
+      } else {
+        pitch = Math.asin(sinp);
+      }
+      return { yaw: yaw * 180 / Math.PI, pitch: pitch * 180 / Math.PI };
+    }
+
+    function updateDisplay() {
+      pitchEl.textContent = orient.pitch.toFixed(6) + '°';
+      yawEl.textContent = orient.yaw.toFixed(6) + '°';
+      pitchAbsEl.textContent = (orientAbs.pitch === null) ? '—' : orientAbs.pitch.toFixed(6) + '°';
+      yawAbsEl.textContent = (orientAbs.yaw === null) ? '—' : orientAbs.yaw.toFixed(6) + '°';
+      biasEl.textContent = `x:${gyroBias.x.toFixed(6)} y:${gyroBias.y.toFixed(6)} z:${gyroBias.z.toFixed(6)}`;
+    }
+
+    function setStatus(s) {
+      statusEl.textContent = s;
+    }
+
+    // Gestisce il wraparound degli angoli (es. da -179° a +179°)
+    function blendAngles(gyroAngle, absAngle, alphaVal) {
+      const a = ((gyroAngle + 180) % 360) - 180;
+      const b = ((absAngle + 180) % 360) - 180;
+      let diff = b - a;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      // Applica la correzione (1-alpha) sulla differenza
+      const blended = a + (1 - alphaVal) * diff;
+      return ((blended + 540) % 360) - 180; // Normalizza di nuovo a [-180,180]
+    }
+
+    // --- Logica Sensori ---
+
+    async function requestIOSPermissionIfNeeded() {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const resp = await DeviceOrientationEvent.requestPermission();
+          if (resp !== 'granted') {
+            throw new Error('Permesso "DeviceOrientationEvent" negato');
+          }
+        } catch (e) {
+          log('Permesso sensori device orientation negato o non ottenuto.');
+          throw e;
+        }
+      }
+    }
+
+    async function startSensors() {
+      if (running) return;
+
+      // Leggi i parametri dalla UI
+      alpha = parseFloat(inpAlpha.value) || 0.985;
+      gyroFreq = Math.max(20, Math.min(400, parseInt(inpGyroFreq.value) || 100));
+      absFreq = Math.max(1, Math.min(60, parseInt(inpAbsFreq.value) || 30));
+      calibSamplesNeeded = gyroFreq * 3; // 3 secondi di campioni
+
+      try {
+        await requestIOSPermissionIfNeeded();
+      } catch (e) {
+        log('Impossibile ottenere permessi iOS: ' + e.message);
+        // Continuiamo, potremmo essere su Android/PC
+      }
+
+      try {
+        if (!('Gyroscope' in window) || !('AbsoluteOrientationSensor' in window)) {
+          throw new Error('Generic Sensor API non disponibile');
+        }
+
+        // Resetta lo stato
+        orient = { pitch: 0, yaw: 0 };
+        orientAbs = { pitch: null, yaw: null };
+        gyroBias = { x: 0, y: 0, z: 0 };
+        biasSamples = [];
+        calibrating = true;
+        running = true;
+        btnStart.disabled = true;
+        btnStop.disabled = false;
+        setStatus('calibrating');
+        log('Avvio sensori...');
+        log(`CALIBRAZIONE: Tieni il dispositivo immobile per 3 secondi... (raccogliendo ${calibSamplesNeeded} campioni @${gyroFreq}Hz)`);
+        
+        // Inizializza i sensori
+        gyroSensor = new Gyroscope({ frequency: gyroFreq });
+        absSensor = new AbsoluteOrientationSensor({ frequency: absFreq, referenceFrame: 'device' });
+
+        // Listener per la CALIBRAZIONE
+        // Questo listener temporaneo raccoglie solo campioni per il bias
+        gyroSensor.addEventListener('reading', onCalibReading);
+        
+        // Listener per l'orientamento assoluto (parte subito)
+        // Questo popolerà orientAbs.pitch/yaw
+        absSensor.addEventListener('reading', onAbsReading);
+        
+        gyroSensor.addEventListener('error', (e) => { log('Errore Gyroscope: ' + e.error.name); stopSensors(); });
+        absSensor.addEventListener('error', (e) => { log('Errore AbsoluteOrientationSensor: ' + e.error.name); stopSensors(); });
+
+        gyroSensor.start();
+        absSensor.start();
+
+      } catch (err) {
+        log('Errore avvio sensori: ' + err.message);
+        setStatus('error');
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+        running = false;
+      }
+    }
+
+    function stopSensors() {
+      if (!running) return;
+      try {
+        gyroSensor && gyroSensor.stop();
+        absSensor && absSensor.stop();
+        // Rimuovi tutti i listener specifici
+        if (gyroSensor) {
+          gyroSensor.removeEventListener('reading', onCalibReading);
+          gyroSensor.removeEventListener('reading', onGyroReading);
+        }
+        if (absSensor) {
+          absSensor.removeEventListener('reading', onAbsReading);
+        }
+        gyroSensor = null;
+        absSensor = null;
+      } catch (e) {
+        console.warn(e);
+      }
+      running = false;
+      calibrating = false;
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      setStatus('stopped');
+      log('Sensori fermati.');
+    }
+
+    // --- Handler Lettura Dati ---
+
+    // FASE 1: Calibrazione (temporaneo)
+    function onCalibReading() {
+      if (biasSamples.length < calibSamplesNeeded) {
+        biasSamples.push({ x: gyroSensor.x, y: gyroSensor.y, z: gyroSensor.z });
+        // Aggiorna lo stato per far vedere che sta calibrando
+        if (biasSamples.length % gyroFreq === 0) {
+           log(`Calibrazione... ${Math.round((biasSamples.length / calibSamplesNeeded) * 100)}%`);
+        }
+      } else {
+        // Calibrazione completata
+        finishCalibration();
+      }
+    }
+
+    // FASE 1.5: Fine calibrazione
+    function finishCalibration() {
+      if (!calibrating) return; // Evita esecuzioni multiple
+      calibrating = false;
+
+      // Rimuovi il listener di calibrazione
+      gyroSensor.removeEventListener('reading', onCalibReading);
+
+      // Calcola il bias medio
+      const avg = biasSamples.reduce((acc, r) => {
+        acc.x += r.x; acc.y += r.y; acc.z += r.z; return acc;
+      }, { x: 0, y: 0, z: 0 });
+      
+      gyroBias.x = avg.x / biasSamples.length;
+      gyroBias.y = avg.y / biasSamples.length;
+      gyroBias.z = avg.z / biasSamples.length;
+
+      log('Calibrazione completata. Bias impostato.');
+      updateDisplay(); // Mostra i valori di bias
+
+      // Se non abbiamo ancora un valore assoluto, aspetteremo.
+      if (orientAbs.pitch === null) {
+          log('In attesa della prima lettura dall\'AbsoluteOrientationSensor...');
+      }
+
+      // Avvia il loop di lettura principale
+      lastTime = performance.now();
+      gyroSensor.addEventListener('reading', onGyroReading);
+      setStatus('running');
+    }
+
+
+    // FASE 2: Lettura AbsoluteOrientation (bassa frequenza)
+    // Questo handler viene eseguito sempre, anche durante la calibrazione.
+    function onAbsReading() {
+      const q = Array.from(absSensor.quaternion || [0, 0, 0, 1]);
+      const e = quaternionToEuler(q);
+
+      if (!Number.isFinite(e.pitch) || !Number.isFinite(e.yaw)) return;
+
+      // Se è la primissima lettura assoluta, sincronizza l'orientamento fuso.
+      // Questo è il nostro punto di partenza.
+      if (orientAbs.pitch === null) {
+        log('Prima lettura assoluta ricevuta. Sincronizzazione.');
+        orient.pitch = e.pitch;
+        orient.yaw = e.yaw;
+      }
+
+      // Aggiorna i valori "obiettivo"
+      orientAbs.pitch = e.pitch;
+      orientAbs.yaw = e.yaw;
+      
+      // Aggiorna solo la parte "Abs" della UI
+      pitchAbsEl.textContent = orientAbs.pitch.toFixed(6) + '°';
+      yawAbsEl.textContent = orientAbs.yaw.toFixed(6) + '°';
+    }
+
+
+    // FASE 2: Lettura Gyroscope (alta frequenza)
+    // Questo è il cuore del filtro. Viene eseguito solo DOPO la calibrazione.
+    function onGyroReading() {
+      // Non fare nulla se stiamo ancora calibrando (doppio controllo) 
+      // o se non abbiamo ancora un riferimento assoluto.
+      if (calibrating || orientAbs.pitch === null) {
+        lastTime = performance.now(); // Resetta il tempo per evitare un 'dt' enorme
+        return;
+      }
+
+      const now = performance.now();
+      const dt = Math.max(1e-6, (now - lastTime) / 1000); // delta tempo in secondi
+      lastTime = now;
+
+      // 1. Applica il bias (velocità angolare "pulita" in rad/s)
+      const wx = gyroSensor.x - gyroBias.x; // Roll
+      const wy = gyroSensor.y - gyroBias.y; // Pitch
+      const wz = gyroSensor.z - gyroBias.z; // Yaw
+
+      // 2. Integrazione (Predizione dal giroscopio)
+      // Calcola il nuovo angolo basandosi *solo* sul giroscopio
+      // NOTA: l'asse y del giroscopio di solito mappa al pitch, l'asse z allo yaw
+      const pitch_integrated = orient.pitch + (wy * 180 / Math.PI) * dt;
+      const yaw_integrated = orient.yaw + (wz * 180 / Math.PI) * dt;
+      
+      // 3. Correzione (Filtro Complementare)
+      // Combina la stima integrata (reattiva) con il riferimento assoluto (stabile)
+      
+      // Per il pitch, è un'interpolazione lineare
+      orient.pitch = alpha * pitch_integrated + (1 - alpha) * orientAbs.pitch;
+
+      // Per lo yaw, usiamo blendAngles per gestire il wraparound (es. da 359° a 1°)
+      orient.yaw = blendAngles(yaw_integrated, orientAbs.yaw, alpha);
+      
+      // Aggiorna la UI con i valori fusi
+      updateDisplay();
+    }
+
+    // --- Collegamenti UI ---
+    btnStart.addEventListener('click', startSensors);
+    btnStop.addEventListener('click', stopSensors);
+    window.addEventListener('beforeunload', stopSensors);
+
+    log('Pagina pronta. Premi "Avvia sensori" e tieni il dispositivo fermo per 3 secondi.');
+
+  </script>
+</body>
+</html>

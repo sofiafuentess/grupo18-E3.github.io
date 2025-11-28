@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lamp</title>
+  </head>
+  <body>
+    <script src="https://cdn.plot.ly/plotly-2.34.0.min.js"></script>
+    <script src="data.js"></script><!-- Los datos son aqui, como variables: btdata y predictions -->
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <div id="myDiv" style="width: 1000px; height: 500px"></div>
+    <!-- Se establece un alto para el gráfico -->
+    <p style="text-align: center">
+      <button id="Pessimistic">Pessimistic</button>
+      <button id="Neutral">Neutral</button>
+      <button id="Optimistic">Optimistic</button>
+    </p>
+
+    <script src="index.js"></script>
+  </body>
+</html>

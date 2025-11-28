@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arduino</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <h1>Arduino page</h1>
+    <script>
+      //Este codigo controla el servo
+      Protobject.Arduino.start();
+
+      let interval,
+        i = 0,
+        val;
+
+      Protobject.Core.onReceived((data) => {
+        val = data * 350;
+        clearInterval(interval);
+
+        if (val > 0) {
+          //Este setInterval siguiente se usa para hacer que el movimiento comienze de forma liviana y aumente, sin que sea repentino
+          interval = setInterval(() => {
+            i = Math.min(i + 1, val);
+            Protobject.Arduino.contServoWrite({ pin: 5, value: i });
+          }, 10);
+        } else {
+          i = 0;
+          Protobject.Arduino.contServoWrite({ pin: 5, value: 0 });
+        }
+      });
+      
+    </script>
+  </body>
+</html>

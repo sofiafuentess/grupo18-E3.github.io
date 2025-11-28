@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script>
+      const switchInstance = new Protobject.Switch({
+        onText: "ON",
+        offText: "OFF",
+        width: 100,
+        height: 270,
+        top: 30,
+        left: 200,
+        fontSize: 20,
+        onTurnedOn: () => console.log("Switch turned ON"),
+        onTurnedOff: () => console.log("Switch turned OFF"),
+        styleOff: { backgroundColor: "grey" },
+        styleOn: { backgroundColor: "green" },
+      });
+
+      switchInstance.onTurnedOn(() =>
+        Protobject.Core.send({ activate: true }).to("index.html")
+      );
+      switchInstance.onTurnedOff(() =>
+        Protobject.Core.send({ activate: false }).to("index.html")
+      );
+
+      // Example configuration
+      const config = {
+        min: 40,
+        max: 100,
+        size: 270,
+        initialValue: 10,
+        knobColor: "#333",
+        valueColor: "#fff",
+        style: {
+          position: "absolute",
+          top: "30px",
+          left: "400px",
+        },
+      };
+
+      const knobInstance = new Protobject.Knob(config);
+
+      knobInstance.onChange((value) => {
+        Protobject.Core.send({ sensitivity: value }).to("index.html");
+      });
+    </script>
+  </body>
+</html>

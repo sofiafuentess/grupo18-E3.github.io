@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script>
+      Protobject.Arduino.start();
+
+      Protobject.Core.onReceived((data) => {
+        console.log("action " + data.lock);
+        if (data.lock == 1) {
+          Protobject.Arduino.contServoWrite({ pin: 5, value: -1500 });
+
+          setTimeout(() => {
+            Protobject.Arduino.contServoWrite({ pin: 5, value: 0 });
+          }, 1000);
+        } else if (data.lock == 0) {
+          Protobject.Arduino.contServoWrite({ pin: 5, value: 1500 });
+          setTimeout(() => {
+            Protobject.Arduino.contServoWrite({ pin: 5, value: 0 });
+          }, 1000);
+        }
+      });
+    </script>
+  </body>
+</html>

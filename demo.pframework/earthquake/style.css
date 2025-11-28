@@ -1,0 +1,90 @@
+* {
+  font-family: sans-serif;
+}
+#context {
+  pointer-events: none;
+  position: absolute;
+  top: 85px;
+  left: 83px;
+  transition: 500ms ease all;
+}
+#myMap {
+  position: absolute;
+  width: 200px;
+  height: 800px;
+  border: 0px solid #333;
+  left: 30px;
+  top: 0px;
+}
+#details {
+  position: absolute;
+  left: 270px;
+  top: 145px;
+  width: 500px;
+  height: 500px;
+  transition: 500ms ease all;
+  opacity: 0;
+}
+#title {
+  position: absolute;
+  left: 265px;
+  top: 20px;
+}
+h1 {
+  font-size: 36px;
+  font-weight: 200;
+  color: #777;
+}
+#details span {
+  display: block;
+  margin-top: 6px;
+}
+#nombre {
+  font-size: 18px;
+  font-weight: 800;
+  color: #333;
+}
+#regiones {
+  font-size: 16px;
+  font-weight: 200;
+  font-style: italic;
+}
+#muertos:after {
+  content: " muertos";
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #444;
+}
+#tzunami img {
+  height: 120px;
+}
+#tzunami {
+  position: absolute;
+  top: 224px;
+  margin-left: 121px;
+}
+#muertos {
+  transition: 500ms ease all;
+  font-size: 60px;
+  margin-top: 59px;
+  font-weight: 700;
+  color: #970b0b;
+}
+#magnitud {
+  width: 100px;
+  transition: 500ms all ease;
+  height: 100px;
+  border: 1px solid;
+  text-align: center;
+  line-height: 100px;
+  border-radius: 100px;
+  margin-top: 43px;
+  font-size: 20px;
+  background: #881d0f;
+  color: #fff;
+}
+#magnitud:after {
+  content: "MW";
+  font-size: 12px;
+}

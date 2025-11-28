@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button</title>
+  </head>
+  <body>
+    <script src="https://cdn.plot.ly/plotly-2.34.0.min.js"></script>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <link rel="stylesheet" href="style.css" />
+
+    <div id="title"><h1>Terremotos de Chile desde el 2000</h1></div>
+    <div id="details">
+      <span id="nombre"></span> <span id="regiones"></span>
+      <span id="muertos"></span> <span id="magnitud"></span>
+      <span id="tzunami"
+        ><img src="tzunami.png"
+      /></span>
+    </div>
+    <div id="myMap"></div>
+    <img
+      id="context"
+      src="map.svg"
+    />
+    
+    <script src="data.js"></script>
+    <script src="earthquake.js"></script>
+    <script src="index.js"></script>
+
+    <script></script>
+  </body>
+</html>

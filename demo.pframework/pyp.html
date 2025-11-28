@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orientazione ultra precisa</title>
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+h1 { color: #6f6; margin-bottom: 1rem; }
+#data {
+  font-family: monospace;
+  font-size: 1.4rem;
+  background: #000;
+  border: 1px solid #0f0;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  text-align: left;
+  box-shadow: 0 0 10px #0f0;
+}
+button {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #0f0;
+  color: #000;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+  <h1>Orientazione ultra precisa</h1>
+  <div id="data">
+    <div>Pitch: <span id="pitch">0</span>°</div>
+    <div>Yaw: <span id="yaw">0</span>°</div>
+    <div>Roll: <span id="roll">0</span>°</div>
+  </div>
+  <button id="start">Avvia sensori</button>
+
+<script>
+const pitchEl = document.getElementById("pitch");
+const yawEl = document.getElementById("yaw");
+const rollEl = document.getElementById("roll");
+const btn = document.getElementById("start");
+
+let gyro, abs;
+let lastTime = 0;
+let gyroAngles = { x: 0, y: 0, z: 0 };
+let bias = { x: 0, y: 0, z: 0 };
+let calibrated = false;
+
+// converte quaternion → Euler (deg)
+function quatToEuler(q) {
+  const [x, y, z, w] = q;
+  const ysqr = y * y;
+
+  const t0 = 2 * (w * x + y * z);
+  const t1 = 1 - 2 * (x * x + ysqr);
+  const roll = Math.atan2(t0, t1);
+
+  let t2 = 2 * (w * y - z * x);
+  t2 = t2 > 1 ? 1 : t2;
+  t2 = t2 < -1 ? -1 : t2;
+  const pitch = Math.asin(t2);
+
+  const t3 = 2 * (w * z + x * y);
+  const t4 = 1 - 2 * (ysqr + z * z);
+  const yaw = Math.atan2(t3, t4);
+
+  return {
+    roll: roll * 180 / Math.PI,
+    pitch: pitch * 180 / Math.PI,
+    yaw: yaw * 180 / Math.PI
+  };
+}
+
+btn.onclick = async () => {
+  if (typeof DeviceOrientationEvent?.requestPermission === "function") {
+    await DeviceOrientationEvent.requestPermission();
+  }
+
+  abs = new AbsoluteOrientationSensor({ frequency: 60 });
+  gyro = new Gyroscope({ frequency: 100 });
+
+  // calibrazione breve
+  let calibCount = 0;
+  gyro.addEventListener("reading", () => {
+    if (!calibrated && calibCount < 100) {
+      bias.x += gyro.x;
+      bias.y += gyro.y;
+      bias.z += gyro.z;
+      calibCount++;
+      if (calibCount === 100) {
+        bias.x /= calibCount;
+        bias.y /= calibCount;
+        bias.z /= calibCount;
+        calibrated = true;
+        console.log("Bias:", bias);
+      }
+    }
+  });
+
+  abs.addEventListener("reading", () => {
+    const e = quatToEuler(abs.quaternion);
+    // correzione lenta (complementary filter)
+    gyroAngles.pitch = 0.98 * gyroAngles.pitch + 0.02 * e.pitch;
+    gyroAngles.yaw = 0.98 * gyroAngles.yaw + 0.02 * e.yaw;
+    gyroAngles.roll = 0.98 * gyroAngles.roll + 0.02 * e.roll;
+  });
+
+  gyro.addEventListener("reading", () => {
+    if (!calibrated) return;
+    const now = performance.now();
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    gyroAngles.x += (gyro.x - bias.x) * dt * 180 / Math.PI;
+    gyroAngles.y += (gyro.y - bias.y) * dt * 180 / Math.PI;
+    gyroAngles.z += (gyro.z - bias.z) * dt * 180 / Math.PI;
+
+    pitchEl.textContent = gyroAngles.x.toFixed(3);
+    yawEl.textContent = gyroAngles.z.toFixed(3);
+    rollEl.textContent = gyroAngles.y.toFixed(3);
+  });
+
+  abs.start();
+  gyro.start();
+  btn.remove();
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <script>
+      // Inicia el sensor de inclinación para generar eventos cada 300 ms
+      Protobject.Inclination.start(100);
+
+      // Escucha los datos del sensor de inclinación
+      Protobject.Inclination.onData((data) => {
+        // Muestra las lecturas de inclinación en la consola
+        // console.log("X: " + data.x + "; Y: " + data.y + "; Z: " + data.z);
+
+        // Clasifica la inclinación en función del eje Z
+        if (data.z > 5) {
+          // Indica inclinación optimista (cara optimista hacia arriba)
+          Protobject.Core.send("Optimistic").to("index.html");
+        } else if (data.z < -5) {
+          // Indica inclinación pesimista (cara pesimista hacia arriba)
+          Protobject.Core.send("Pessimistic").to("index.html");
+        } else {
+          // Indica inclinación neutral (posición vertical)
+          Protobject.Core.send("Neutral").to("index.html");
+        }
+      });
+    </script>
+  </body>
+</html>

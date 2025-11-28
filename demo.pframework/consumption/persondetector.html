@@ -1,0 +1,45 @@
+<!-- Esta página define el boton -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <script>
+      // Inicia la detección de rostros con un intervalo de 100 ms
+      Protobject.FaceSensor.start(100);
+
+      // Muestra una vista previa de la detección de rostros en la pantalla con las siguientes dimensiones y posición:
+      Protobject.FaceSensor.showPreview({
+        top: 50, // Distancia desde la parte superior de la pantalla en píxeles.
+        left: 50, // Distancia desde la parte izquierda de la pantalla en píxeles.
+        width: 640, // Ancho de la vista previa en píxeles.
+        height: 480, // Altura de la vista previa en píxeles.
+      });
+
+      let oldFaceNumber = 0; // Inicializa una variable para almacenar el número anterior de rostros detectados.
+
+      // Escucha los datos de FaceSensor:
+      Protobject.FaceSensor.onData((data) => {
+        // Obtiene el número de rostros detectados basado en la longitud de los puntos faciales (landmarks).
+        let faceNumber = data.faceLandmarks.length;
+        console.log("Face number: ", faceNumber); // Muestra en la consola el número de rostros detectados.
+
+        // Solo si el número de rostros ha cambiado desde la última detección:
+        if (faceNumber != oldFaceNumber) {
+          // Envía el nuevo número de rostros detectados al archivo 'main.js' a través de Protobject.
+          Protobject.Core.send(faceNumber).to("index.html");
+
+          // Actualiza la variable para almacenar el nuevo número de rostros.
+          oldFaceNumber = faceNumber;
+        }
+      });
+    </script>
+  </body>
+</html>
+ 

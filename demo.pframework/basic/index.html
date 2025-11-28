@@ -1,0 +1,50 @@
+<!-- This is a simple lamp that turns on with a button. See the file button.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lamp</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <h1 style="font-family: sans-serif; text-align: center; margin-top: 20px">
+      This is the lamp
+    </h1>
+    <script>
+      // This file, index.html, defines a lamp.
+      // An instance of the lamp is created with the specified dimensions and position.
+      const lamp = new Protobject.Lamp({
+        width: "calc(100% - 160px)", // Lamp width
+        height: "calc(100% - 160px)", // Lamp height
+        top: "80px", // Position from the top
+        left: "80px", // Position from the left
+        zIndex: 5,
+        borderRadius: "20px",
+      });
+
+      // Event triggered when a message is received.
+      // If the received message is 'true', the lamp turns on with red light.
+      // If the message is 'false', the lamp turns off.
+      Protobject.Core.onReceived(function (message) {
+        if (message) {
+          lamp.setColor({ r: 0, g: 255, b: 0 }); // Green light (RGB: 0, 255, 0)
+        } else {
+          lamp.setColor({ r: 0, g: 0, b: 0 }); // Off (RGB: 0, 0, 0)
+        }
+      });
+    </script>
+  </body>
+  <style>
+    #ProtobjectPlusButton {
+      width: 80px !important;
+    }
+
+    #ProtobjectPlusButton:after {
+      content: " Connect";
+    }
+  </style>
+</html>

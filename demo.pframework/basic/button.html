@@ -1,0 +1,42 @@
+<!-- This page defines the button -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Button</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <h1 style="font-family:sans-serif; text-align:center; margin-top:20px">This is the button</h1>
+    <script>
+      // A button is created with the following configurations:
+      const button = new Protobject.Button({
+        text: "Click Me", // Text displayed on the button
+        style: {
+          backgroundColor: "blue", // Button background color
+          color: "white", // Text color
+          padding: "10px 20px", // Internal spacing of the button (top-bottom, left-right)
+          width: "calc(100% - 160px)", // Lamp width
+          height: "calc(100% - 160px)", // Lamp height
+          top: "80px", // Position from the top
+          left: "80px", // Position from the left
+          borderRadius: "20px",
+        },
+      });
+
+      // An action is defined for when the button is pressed.
+      // It displays a message in the console and sends the value 'true' to the "index.html" file.
+      button.onPressed(() => {
+        Protobject.Core.send(true).to("index.html"); // Send message to the file
+      });
+
+      // An action is defined for when the button is released.
+      // It displays a message in the console and sends the value 'false' to the "index.html" file.
+      button.onRelease(() => {
+        Protobject.Core.send(false).to("index.html"); // Send message to the file
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Main</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script>
+      const options = {
+        A1: "https://tonejs.github.io/audio/casio/A1.mp3",
+      };
+      const player = new Protobject.NotePlayer(options);
+
+      const message = new Protobject.Text({
+        placeholder: "",
+        editable: false,
+        style: {
+          backgroundColor: "transparent",
+          color: "#000",
+          fontSize: "35px",
+          border: 0,
+          textAlign: "center",
+        },
+      });
+
+      const code = new Protobject.Text({
+        placeholder: "Insert deactivation code",
+        editable: true,
+        style: {
+          backgroundColor: "transparent",
+          color: "#000",
+          top: "60px",
+          fontSize: "55px",
+          textAlign: "center",
+          border: "1px solid #222",
+          display: "none",
+        },
+      });
+
+      code.onInput((text) => {
+        if (text == "1234") {
+          Protobject.Core.send({ armed: false }).to("sensor.html");
+          message.setText("Disarmed");
+          code.setText("");
+          code.setStyle({ display: "none" });
+          switchInstance.setStyleContainer({ visibility: "visible" });
+        }
+      });
+
+      const switchInstance = new Protobject.Switch({
+        onText: "ON",
+        offText: "OFF",
+        width: 320,
+        height: 560,
+        top: 150,
+        left: 30,
+        fontSize: 20,
+        styleOff: { backgroundColor: "grey" },
+        styleOn: { backgroundColor: "green" },
+      });
+
+      let soundInterval;
+
+      message.setText("Disarmed");
+      switchInstance.onTurnedOn(() => {
+        message.setText("The alarm will be activated in 20 seconds.");
+
+        soundInterval = setInterval(function () {
+          player.play("A5");
+          setTimeout(function () {
+            player.stop();
+          }, 100);
+        }, 1000);
+
+        setTimeout(function () {
+          message.setText("Armed");
+          clearInterval(soundInterval);
+          Protobject.Core.send({ armed: true }).to("sensor.html");
+        }, 20000);
+      });
+
+      switchInstance.onTurnedOff(() => {
+        code.setStyle({ display: "block" });
+        switchInstance.setStyleContainer({ visibility: "hidden" });
+      });
+
+      Protobject.Core.onReceived((data) => {
+        message.setText(data.timer);
+        soundInterval = setTimeout(function () {
+          player.play("A5");
+          setTimeout(function () {
+            player.stop();
+          }, 100);
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensor 1</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script>
+      Protobject.PresenceSensor.setBaselineAndStartMonitoring(200, 0);
+      Protobject.PresenceSensor.showPreview({
+        top: 50,
+        left: 50,
+        width: 640,
+        height: 480,
+      });
+
+      let LValue = 0;
+      let OldLValue = 0;
+
+      Protobject.PresenceSensor.onData((similarity) => {
+        if (similarity < 0.8) {
+          LValue = 1;
+        } else {
+          LValue = 0;
+        }
+
+        if (LValue != OldLValue)
+          Protobject.Core.send({ lightOne: LValue }).to("index.html");
+        OldLValue = LValue;
+      });
+    </script>
+  </body>
+</html>

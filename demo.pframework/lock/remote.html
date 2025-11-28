@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Remote</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script>
+      const myText = new Protobject.Text({
+        defaultText: "Master Key",
+        editable: false,
+        style: {
+          backgroundColor: "transparent",
+          border: 0,
+          textAlign: "center",
+          fontSize: "45px",
+          top: "1px",
+        },
+      });
+
+      const LockButton = new Protobject.Button({
+        text: "Lock",
+        style: {
+          backgroundColor: "red",
+          color: "white",
+          padding: "10px 10px",
+          width: "100%",
+          height: "300px",
+          top: "80px",
+          fontSize: "40px",
+        },
+      });
+
+      LockButton.onPressed(() => {
+        let code = prompt("Please enter the code", "");
+        Protobject.Core.send({ lock: 1, code: code }).to("index.html");
+      });
+
+      const UnlockButton = new Protobject.Button({
+        text: "Unlock",
+        style: {
+          backgroundColor: "green",
+          color: "white",
+          padding: "10px 10px",
+          width: "100%",
+          height: "300px",
+          top: "380px",
+          fontSize: "40px",
+        },
+      });
+
+      UnlockButton.onPressed(() => Protobject.Core.send({ lock: 0 }).to("index.html"));
+    </script>
+  </body>
+</html>
